@@ -1,0 +1,32 @@
+name: JamfAppManager
+options:
+  bundleIdPrefix: com.vantine
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+targets:
+  JamfAppManager:
+    type: application
+    platform: macOS
+    sources:
+      - JamfAppManager
+    entitlements:
+      path: JamfAppManager/JamfAppManager.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        # Read the enrolled Jamf Pro URL to prefill the connect screen.
+        com.apple.security.temporary-exception.files.absolute-path.read-only:
+          - /Library/Preferences/com.jamfsoftware.jamf.plist
+    settings:
+      base:
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.vantine.JamfAppManager
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        ENABLE_HARDENED_RUNTIME: true
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_STRICT_CONCURRENCY: complete
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
