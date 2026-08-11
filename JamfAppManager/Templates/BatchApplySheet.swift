@@ -150,6 +150,7 @@ final class BatchApplyModel {
 struct BatchApplySheet: View {
     @State private var model: BatchApplyModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(RecordStore.self) private var recordStore
 
     init(client: JamfClient, request: BatchRequest) {
         _model = State(initialValue: BatchApplyModel(client: client, request: request))
@@ -182,7 +183,10 @@ struct BatchApplySheet: View {
                 Spacer()
                 if model.phase == .preview || model.phase == .staging {
                     Button {
-                        Task { await model.applyAll() }
+                        Task {
+                            await model.applyAll()
+                            await refreshCaches()
+                        }
                     } label: {
                         Text("Apply to \(model.readyCount) App\(model.readyCount == 1 ? "" : "s")")
                             .frame(minWidth: 120)
@@ -198,6 +202,21 @@ struct BatchApplySheet: View {
         .frame(minWidth: 560, minHeight: 460)
         .interactiveDismissDisabled(model.phase == .applying)
         .task { await model.stageAll() }
+    }
+
+    /// Written apps are stale in the record cache; drop them and refresh the
+    /// list so renamed apps show their new titles.
+    private func refreshCaches() async {
+        var wroteAny = false
+        for target in model.targets {
+            if case .success = target.state {
+                recordStore.invalidate(catalog: model.catalog, id: target.summary.id)
+                wroteAny = true
+            }
+        }
+        if wroteAny {
+            _ = try? await recordStore.loadList(catalog: model.catalog, client: model.client, force: true)
+        }
     }
 
     private var subtitle: String {

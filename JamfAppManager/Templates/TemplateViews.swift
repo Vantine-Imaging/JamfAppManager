@@ -54,15 +54,15 @@ struct TemplatesListView: View {
 struct TemplateEditorView: View {
     @Environment(TemplateStore.self) private var store
     @Environment(SessionStore.self) private var session
+    @Environment(RecordStore.self) private var recordStore
     let templateID: UUID
-
-    @State private var scopeOptions: ScopeOptions?
-    @State private var categories: [NamedID] = []
-    @State private var vppAccounts: [NamedID] = []
 
     private var template: SettingsTemplate? {
         store.template(id: templateID)
     }
+
+    private var categories: [NamedID] { recordStore.categories ?? [] }
+    private var vppAccounts: [NamedID] { recordStore.vppAccounts ?? [] }
 
     var body: some View {
         if let template {
@@ -98,11 +98,8 @@ struct TemplateEditorView: View {
             .navigationTitle(template.name)
             .navigationSubtitle(template.catalog.title)
             .task(id: template.catalog) {
-                scopeOptions = nil
                 if let client = session.client {
-                    scopeOptions = try? await client.fetchScopeOptions(catalog: template.catalog)
-                    categories = (try? await client.fetchCategories()) ?? []
-                    vppAccounts = (try? await client.fetchVPPAccounts()) ?? []
+                    await recordStore.loadPickers(catalog: template.catalog, client: client)
                 }
             }
         } else {
@@ -181,7 +178,9 @@ struct TemplateEditorView: View {
     }
 
     private func options(for key: FieldKey) -> [NamedID] {
-        guard let scopeOptions else { return [] }
+        guard let template,
+              let scopeOptions = recordStore.scopeOptions[template.catalog]
+        else { return [] }
         switch key {
         case .scopeGroups, .scopeExcludedGroups: return scopeOptions.groups
         case .scopeBuildings, .scopeExcludedBuildings: return scopeOptions.buildings

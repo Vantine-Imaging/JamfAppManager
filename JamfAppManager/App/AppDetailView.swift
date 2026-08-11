@@ -1,32 +1,13 @@
 import SwiftUI
 
-/// One app's settings across the four Jamf tabs. General, Managed
-/// Distribution, and App Configuration are editable; nothing is written to
-/// the server until the user reviews the diff and confirms. Scope editing
-/// comes with the template/batch milestone.
+/// One app's settings across the Jamf tabs. Records and their editors are
+/// cached in RecordStore, so unsaved edits survive switching between apps
+/// and reopening is instant; Refresh/Discard force a re-fetch. Nothing is
+/// written until the user reviews the diff and confirms.
 struct AppDetailView: View {
     let client: JamfClient
     let catalog: AppCatalog
     let summary: AppSummary
-
-    enum Detail {
-        case mobileDevice(MobileDeviceAppDetail)
-        case mac(MacAppDetail)
-
-        var scope: AppScope? {
-            switch self {
-            case .mobileDevice(let app): app.scope
-            case .mac(let app): app.scope
-            }
-        }
-
-        var vpp: VPPSettings? {
-            switch self {
-            case .mobileDevice(let app): app.vpp
-            case .mac(let app): app.vpp
-            }
-        }
-    }
 
     enum Tab: String, CaseIterable, Identifiable {
         case general = "General"
@@ -48,16 +29,13 @@ struct AppDetailView: View {
     }
 
     @Environment(TemplateStore.self) private var templateStore
-    @State private var detail: Detail?
-    @State private var editor: AppEditor?
+    @Environment(RecordStore.self) private var recordStore
+    @State private var entry: RecordStore.Entry?
     @State private var errorMessage: String?
     @State private var selectedTab: Tab = .general
     @State private var showingReview = false
     @State private var showingSaveTemplate = false
     @State private var templateName = ""
-    @State private var scopeOptions: ScopeOptions?
-    @State private var categories: [NamedID] = []
-    @State private var vppAccounts: [NamedID] = []
 
     var body: some View {
         Group {
@@ -67,9 +45,10 @@ struct AppDetailView: View {
                 } description: {
                     Text(errorMessage)
                 } actions: {
-                    Button("Retry") { Task { await load() } }
+                    Button("Retry") { Task { await load(force: true) } }
                 }
-            } else if let detail, let editor {
+            } else if let entry {
+                let editor = entry.editor
                 VStack(spacing: 0) {
                     Picker("Tab", selection: $selectedTab) {
                         ForEach(Tab.available(for: catalog)) { tab in
@@ -80,7 +59,7 @@ struct AppDetailView: View {
                     .labelsHidden()
                     .padding()
 
-                    tabContent(detail: detail, editor: editor)
+                    tabContent(detail: entry.detail, editor: editor)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .toolbar {
@@ -93,12 +72,22 @@ struct AppDetailView: View {
                         }
                         ToolbarItem {
                             Button {
-                                Task { await load() }
+                                Task { await load(force: true) }
                             } label: {
                                 Label("Discard", systemImage: "arrow.uturn.backward")
                                     .labelStyle(.titleAndIcon)
                             }
-                            .help("Discard unsaved edits")
+                            .help("Discard unsaved edits and reload from the server")
+                        }
+                    } else {
+                        ToolbarItem {
+                            Button {
+                                Task { await load(force: true) }
+                            } label: {
+                                Label("Refresh", systemImage: "arrow.clockwise")
+                                    .labelStyle(.titleAndIcon)
+                            }
+                            .help("Re-fetch this app from the server")
                         }
                     }
                     ToolbarItem {
@@ -119,7 +108,10 @@ struct AppDetailView: View {
                 }
                 .sheet(isPresented: $showingReview) {
                     ReviewChangesSheet(client: client, editor: editor) {
-                        Task { await load() }
+                        Task {
+                            await load(force: true)
+                            _ = try? await recordStore.loadList(catalog: catalog, client: client, force: true)
+                        }
                     }
                 }
                 .alert("Save Settings as Template", isPresented: $showingSaveTemplate) {
@@ -138,11 +130,11 @@ struct AppDetailView: View {
         }
         .navigationTitle(summary.listTitle)
         .navigationSubtitle("ID \(summary.id)")
-        .task { await load() }
+        .task { await load(force: false) }
     }
 
     @ViewBuilder
-    private func tabContent(detail: Detail, editor: AppEditor) -> some View {
+    private func tabContent(detail: AppRecordDetail, editor: AppEditor) -> some View {
         switch selectedTab {
         case .general:
             generalTab(detail: detail, editor: editor)
@@ -160,7 +152,7 @@ struct AppDetailView: View {
     // MARK: - General
 
     @ViewBuilder
-    private func generalTab(detail: Detail, editor: AppEditor) -> some View {
+    private func generalTab(detail: AppRecordDetail, editor: AppEditor) -> some View {
         @Bindable var editor = editor
         Form {
             switch detail {
@@ -228,11 +220,11 @@ struct AppDetailView: View {
     // MARK: - Scope
 
     @ViewBuilder
-    private func scopeTab(detail: Detail, editor: AppEditor) -> some View {
+    private func scopeTab(detail: AppRecordDetail, editor: AppEditor) -> some View {
         @Bindable var editor = editor
         let groupsLabel = catalog == .mobileDevice ? "Device Groups" : "Computer Groups"
         let allLabel = catalog == .mobileDevice ? "All Mobile Devices" : "All Computers"
-        let options = scopeOptions ?? ScopeOptions()
+        let options = recordStore.scopeOptions[catalog] ?? ScopeOptions()
 
         Form {
             Section("Targets") {
@@ -274,7 +266,7 @@ struct AppDetailView: View {
     // MARK: - Managed Distribution
 
     @ViewBuilder
-    private func managedDistributionTab(detail: Detail, editor: AppEditor) -> some View {
+    private func managedDistributionTab(detail: AppRecordDetail, editor: AppEditor) -> some View {
         @Bindable var editor = editor
         Form {
             Section("Volume Purchasing") {
@@ -296,6 +288,7 @@ struct AppDetailView: View {
 
     @ViewBuilder
     private func categoryPicker(editor: AppEditor) -> some View {
+        let categories = recordStore.categories ?? []
         let currentID = editor.category?.id ?? -1
         let known = currentID == -1 || categories.contains { $0.id == currentID }
         Picker("Category", selection: Binding(
@@ -319,6 +312,7 @@ struct AppDetailView: View {
 
     @ViewBuilder
     private func vppLocationPicker(editor: AppEditor) -> some View {
+        let vppAccounts = recordStore.vppAccounts ?? []
         let currentID = editor.vppAccountID
         let known = currentID <= 0 || vppAccounts.contains { $0.id == currentID }
         Picker("Location", selection: Binding(
@@ -364,7 +358,10 @@ struct AppDetailView: View {
                 TextField("Message", text: $editor.ssNotificationMessage)
             }
             Section("Categories") {
-                SelfServiceCategoriesEditor(categories: categories, selection: $editor.ssCategories)
+                SelfServiceCategoriesEditor(
+                    categories: recordStore.categories ?? [],
+                    selection: $editor.ssCategories
+                )
             }
         }
         .formStyle(.grouped)
@@ -432,33 +429,16 @@ struct AppDetailView: View {
             ])
     }
 
-    private func load() async {
+    private func load(force: Bool) async {
         errorMessage = nil
         do {
-            switch catalog {
-            case .mobileDevice:
-                let loaded = try await client.fetchMobileDeviceAppDetail(id: summary.id)
-                detail = .mobileDevice(loaded)
-                editor = AppEditor(mobile: loaded)
-            case .mac:
-                let loaded = try await client.fetchMacAppDetail(id: summary.id)
-                detail = .mac(loaded)
-                editor = AppEditor(mac: loaded)
-            }
+            entry = try await recordStore.loadEntry(
+                catalog: catalog, id: summary.id, client: client, force: force
+            )
         } catch {
             errorMessage = error.localizedDescription
             return
         }
-        // Picker options load after the record so the form appears
-        // immediately; a failure here just leaves the pickers empty.
-        if scopeOptions == nil {
-            scopeOptions = try? await client.fetchScopeOptions(catalog: catalog)
-        }
-        if categories.isEmpty {
-            categories = (try? await client.fetchCategories()) ?? []
-        }
-        if vppAccounts.isEmpty {
-            vppAccounts = (try? await client.fetchVPPAccounts()) ?? []
-        }
+        await recordStore.loadPickers(catalog: catalog, client: client)
     }
 }

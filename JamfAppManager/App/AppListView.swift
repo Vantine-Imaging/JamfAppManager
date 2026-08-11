@@ -31,7 +31,7 @@ struct AppListView: View {
 
     @Environment(TemplateStore.self) private var templateStore
     @Environment(IconStore.self) private var iconStore
-    @State private var apps: [AppSummary] = []
+    @Environment(RecordStore.self) private var recordStore
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var searchText = ""
@@ -41,6 +41,10 @@ struct AppListView: View {
     @State private var exportDocument: CSVDocument?
     @State private var isBuildingExport = false
     @State private var csvAlertMessage: String?
+
+    private var apps: [AppSummary] {
+        recordStore.list(for: catalog) ?? []
+    }
 
     private var filteredApps: [AppSummary] {
         guard !searchText.isEmpty else { return apps }
@@ -71,7 +75,7 @@ struct AppListView: View {
                 } description: {
                     Text(errorMessage)
                 } actions: {
-                    Button("Retry") { Task { await load() } }
+                    Button("Retry") { Task { await load(force: true) } }
                 }
             } else {
                 List(filteredApps, id: \.self, selection: $selection) { app in
@@ -93,6 +97,12 @@ struct AppListView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                        }
+                        if recordStore.hasUnsavedChanges(catalog: catalog, id: app.id) {
+                            Spacer()
+                            Image(systemName: "pencil.circle.fill")
+                                .foregroundStyle(.orange)
+                                .help("Unsaved edits")
                         }
                     }
                     .tag(app)
@@ -163,7 +173,7 @@ struct AppListView: View {
             }
             ToolbarItem {
                 Button("Refresh", systemImage: "arrow.clockwise") {
-                    Task { await load() }
+                    Task { await load(force: true) }
                 }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(isLoading)
@@ -191,7 +201,7 @@ struct AppListView: View {
         } message: {
             Text(csvAlertMessage ?? "")
         }
-        .task { await load() }
+        .task { await load(force: false) }
     }
 
     private var subtitle: String {
@@ -200,11 +210,11 @@ struct AppListView: View {
             : "\(apps.count) apps"
     }
 
-    private func load() async {
+    private func load(force: Bool) async {
         isLoading = true
         errorMessage = nil
         do {
-            apps = try await client.fetchAppList(catalog: catalog)
+            try await recordStore.loadList(catalog: catalog, client: client, force: force)
         } catch {
             errorMessage = error.localizedDescription
         }

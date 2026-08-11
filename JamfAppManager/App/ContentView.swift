@@ -16,6 +16,8 @@ enum MacSource: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(IconStore.self) private var iconStore
+    @Environment(RecordStore.self) private var recordStore
     @State private var sidebarSelection: SidebarItem? = .catalog(.mac)
     @State private var selectedApps: Set<AppSummary> = []
     @State private var macSource: MacSource = .appStore
@@ -24,11 +26,19 @@ struct ContentView: View {
     @State private var batchRequest: BatchRequest?
 
     var body: some View {
-        switch session.phase {
-        case .connected:
-            mainInterface
-        default:
-            ConnectView()
+        Group {
+            switch session.phase {
+            case .connected:
+                mainInterface
+            default:
+                ConnectView()
+            }
+        }
+        // Lives outside mainInterface: the connected view is unmounted at the
+        // moment the server changes, so a reset attached there never fires.
+        .onChange(of: session.activeServerID) {
+            recordStore.reset()
+            iconStore.reset()
         }
     }
 

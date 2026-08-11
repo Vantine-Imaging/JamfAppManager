@@ -231,6 +231,26 @@ struct SelfServiceInfo: Decodable, Hashable, Sendable {
     }
 }
 
+/// A loaded Classic record from either catalog.
+enum AppRecordDetail: Sendable {
+    case mobileDevice(MobileDeviceAppDetail)
+    case mac(MacAppDetail)
+
+    var scope: AppScope? {
+        switch self {
+        case .mobileDevice(let app): app.scope
+        case .mac(let app): app.scope
+        }
+    }
+
+    var vpp: VPPSettings? {
+        switch self {
+        case .mobileDevice(let app): app.vpp
+        case .mac(let app): app.vpp
+        }
+    }
+}
+
 /// General tab for a mobile device app.
 struct MobileDeviceAppGeneral: Decodable, Hashable, Sendable {
     var id: Int
