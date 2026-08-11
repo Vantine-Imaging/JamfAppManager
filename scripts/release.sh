@@ -22,19 +22,30 @@ xcodegen generate
 APP_SIGN_ID=$(security find-identity -v -p codesigning 2>/dev/null \
   | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"') || true
 
-echo "==> Building Release"
+# Start from a fresh derived-data dir every time: stale build state from an
+# older Xcode/macOS can wedge `xcodebuild clean` itself.
+rm -rf build
+mkdir -p build
+BUILD_LOG="build/xcodebuild.log"
+
+sign_args=()
 if [[ -n "${APP_SIGN_ID:-}" ]]; then
-  echo "    Signing with: $APP_SIGN_ID"
-  xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release \
-    -derivedDataPath build clean build \
-    CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$APP_SIGN_ID" \
-    OTHER_CODE_SIGN_FLAGS=--timestamp | tail -2
+  echo "==> Building Release (signing with: $APP_SIGN_ID)"
+  sign_args=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$APP_SIGN_ID" OTHER_CODE_SIGN_FLAGS=--timestamp)
 else
+  echo "==> Building Release (ad-hoc signing)"
   echo "    WARNING: no Developer ID Application identity — using ad-hoc signing."
   echo "    The pkg will deploy via Jamf/MDM, but Gatekeeper blocks manual installs."
-  xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release \
-    -derivedDataPath build clean build CODE_SIGN_IDENTITY="-" | tail -2
+  sign_args=(CODE_SIGN_IDENTITY=-)
 fi
+
+if ! xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release \
+    -derivedDataPath build build "${sign_args[@]}" > "$BUILD_LOG" 2>&1; then
+  echo "    BUILD FAILED — last 30 lines of $BUILD_LOG:"
+  tail -30 "$BUILD_LOG"
+  exit 1
+fi
+echo "    Build succeeded"
 
 APP_PATH="build/Build/Products/Release/$APP_NAME.app"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")
