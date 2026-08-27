@@ -192,7 +192,11 @@ struct AppListView: View {
             document: exportDocument,
             contentType: .commaSeparatedText,
             defaultFilename: "\(catalog.title) Settings"
-        ) { _ in }
+        ) { result in
+            if case .failure(let error) = result {
+                csvAlertMessage = "Export failed: \(error.localizedDescription)"
+            }
+        }
         .alert("CSV", isPresented: Binding(
             get: { csvAlertMessage != nil },
             set: { if !$0 { csvAlertMessage = nil } }
