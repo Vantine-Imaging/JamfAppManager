@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// A saved Jamf Pro instance. The client secret is not stored here — it lives

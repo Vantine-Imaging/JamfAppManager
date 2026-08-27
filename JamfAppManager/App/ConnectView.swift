@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import SwiftUI
 
 /// First-run / reconnect screen: pick a saved Jamf Pro server or add one.

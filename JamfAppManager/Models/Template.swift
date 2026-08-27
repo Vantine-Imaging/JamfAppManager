@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// Every field a template can carry. Raw values are the persistence format —

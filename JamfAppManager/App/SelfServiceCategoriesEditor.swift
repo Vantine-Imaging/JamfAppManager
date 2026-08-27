@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import SwiftUI
 
 /// Checklist of Self Service categories with per-category Display/Feature

@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 // Jamf App Catalog (App Installers) deployments, from the Jamf Pro API

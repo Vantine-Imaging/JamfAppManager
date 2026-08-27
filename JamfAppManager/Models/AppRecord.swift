@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 // Full app records from the Classic API. Every field beyond `id`/`name` is

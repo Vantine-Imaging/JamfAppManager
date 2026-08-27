@@ -39,12 +39,12 @@ Edit `project.yml` (not the xcodeproj) and re-run `xcodegen generate` when the p
 
 Produces `dist/JamfAppManager-<version>.pkg` (version comes from `MARKETING_VERSION` in `project.yml` — bump it there before tagging a release). The script adapts to what's in your keychain:
 
-- **No certificates** (current state): ad-hoc-signed app, unsigned pkg. Deploys fine through Jamf Pro — MDM installs skip Gatekeeper — but manual double-click installs on unmanaged Macs are blocked.
-- **Developer ID certificates present**: app signed with *Developer ID Application* (hardened runtime + timestamp), pkg signed with *Developer ID Installer*, and — if a notary profile exists — notarized and stapled, making the pkg safe to distribute anywhere.
+- **No certificates**: ad-hoc-signed app, unsigned pkg. Deploys fine through Jamf Pro — MDM installs skip Gatekeeper — but manual double-click installs on unmanaged Macs are blocked.
+- **Developer ID certificates present**: app signed with *Developer ID Application* (hardened runtime + timestamp, resolved by fingerprint so duplicate certificate names can't break the build), pkg signed with *Developer ID Installer*, and — if a notary keychain profile exists — notarized and stapled, making the pkg safe to distribute anywhere. Pass `NOTARY_PROFILE=<name>` to use an existing profile.
 
 ### One-time signing setup (when ready)
 
-1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) ($99/yr, can be under the Vantine org).
+1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) ($99/yr).
 2. Create certificates and install them in the login keychain:
    - **Developer ID Application** — Xcode → Settings → Accounts → Manage Certificates → “+”.
    - **Developer ID Installer** — create at developer.apple.com → Certificates if Xcode doesn’t offer it.
@@ -56,6 +56,27 @@ Produces `dist/JamfAppManager-<version>.pkg` (version comes from `MARKETING_VERS
 
 ## Jamf Pro setup
 
-Create an API client under **Settings → System → API Roles and Clients** with (for now) read permissions on Mobile Device Apps and Mac Apps. Write scopes come later, and the app will always show a diff preview and require explicit confirmation before writing.
+Create an API client under **Settings → System → API Roles and Clients** with read (and, to enable saving, update) privileges on Mobile Device Apps and Mac Apps, plus App Installers for the Jamf App Catalog. Start read-only if you want to evaluate safely — the app works fully as a browser, and every write is gated behind a diff preview and explicit confirmation regardless.
 
-API notes: full app records (scope, VPP, app configuration) come from the Classic API (`/JSSResource/mobiledeviceapplications`, `/JSSResource/macapplications`) — JSON for reads, XML for the eventual writes. OAuth tokens come from `/api/oauth/token`.
+API notes: full app records (scope, VPP, self service, app configuration) come from the Classic API (`/JSSResource/mobiledeviceapplications`, `/JSSResource/macapplications`) — JSON for reads, field-masked XML for writes. Jamf App Catalog deployments use the Pro API (`/api/v1/app-installers`). OAuth tokens come from `/api/oauth/token`.
+
+## License
+
+Copyright 2026 Vantine Imaging LLC.
+
+Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify
+and redistribute this, including commercially, provided you keep the copyright
+and license notices and state any changes you make. It is provided without
+warranty of any kind. See [NOTICE](NOTICE) for the attribution notice that
+accompanies redistribution.
+
+JamfAppManager was written at Vantine Imaging LLC and is owned by it; it is
+published here because bulk-editing app settings is a problem every Jamf admin
+has, and The MUT's spiritual successor deserved to exist.
+
+### Contributing
+
+Issues and pull requests are welcome. Contributions are accepted under the
+terms of the Apache License 2.0 — per section 5 of the licence, anything you
+deliberately submit for inclusion is licensed under it without additional
+terms.

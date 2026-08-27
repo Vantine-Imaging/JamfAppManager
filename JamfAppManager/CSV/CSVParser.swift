@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// Minimal RFC 4180 CSV: comma-separated, double-quote quoting with "" as

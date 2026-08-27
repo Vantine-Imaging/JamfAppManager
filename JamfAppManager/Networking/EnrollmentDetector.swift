@@ -1,3 +1,6 @@
+// Copyright 2026 Vantine Imaging LLC
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// Reads the Jamf Pro URL this Mac is enrolled to, if any, from the jamf
