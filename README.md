@@ -28,7 +28,18 @@ Edit `project.yml` (not the xcodeproj) and re-run `xcodegen generate` when the p
 
 ## Jamf Pro setup
 
-Create an API client under **Settings → System → API Roles and Clients** with read (and, to enable saving, update) privileges on Mobile Device Apps and Mac Apps, plus App Installers for the Jamf App Catalog. Start read-only if you want to evaluate safely — the app works fully as a browser, and every write is gated behind a diff preview and explicit confirmation regardless.
+Create an API role and client under **Settings → System → API Roles and Clients**. The exact privileges (named as they appear in Jamf's privilege picker):
+
+| To browse (read-only) | To save changes |
+| --- | --- |
+| Read Mac Applications | Update Mac Applications |
+| Read Mobile Device Applications | Update Mobile Device Applications |
+| Read Smart Computer Groups, Read Static Computer Groups | |
+| Read Smart Mobile Device Groups, Read Static Mobile Device Groups | |
+| Read Buildings, Read Departments, Read Categories | |
+| Read Volume Purchasing Locations | |
+
+Jamf App Catalog (App Installers) deployments have no privilege of their own — their endpoints are governed by the Mac Applications privileges. Start read-only if you want to evaluate safely — the app works fully as a browser, and every write is gated behind a diff preview and explicit confirmation regardless.
 
 API notes: full app records (scope, VPP, self service, app configuration) come from the Classic API (`/JSSResource/mobiledeviceapplications`, `/JSSResource/macapplications`) — JSON for reads, field-masked XML for writes. Jamf App Catalog deployments use the Pro API (`/api/v1/app-installers`). OAuth tokens come from `/api/oauth/token`.
 
