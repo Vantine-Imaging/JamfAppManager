@@ -2,6 +2,12 @@
 
 A macOS 26 (SwiftUI, Liquid Glass) app for viewing and mass-modifying app settings in Jamf Pro — both **Mobile Device Apps** (Devices section) and **Mac Apps** (Computers section). Inspired by The MUT, but focused on per-app editing plus reusable setting **templates** that can be applied to many apps at once, covering the General, Scope, Managed Distribution, and App Configuration tabs.
 
+![Jamf App Manager](docs/screenshot-main.png)
+
+Every write — a single field, a template applied to fifty apps, or a CSV import — is staged as an old → new diff and sent only after explicit confirmation. Only changed fields are transmitted, so untouched settings can never be clobbered:
+
+![Review Changes](docs/screenshot-review.png)
+
 ## CSV format
 
 Header row, one row per app. Identifier columns: `id`, `bundle_id`, or `name` (at least one). Setting columns use field names (`displayName`, `deployAsManagedApp`, `scopeGroups`, `category`, `vppLocation`, `ssButtonText`, …) or their UI labels. Empty cells leave that field untouched. Scope lists are semicolon-separated names or `#id`s ("All iPads; #22"). `category` takes a category name, `#id`, or `None` to clear. `ssCategories` takes semicolon-separated category names with a trailing `*` to feature ("Applications; Maintenance*"). Booleans accept true/false, yes/no, 1/0. The easiest way to get a valid file is Export All to CSV, edit, re-import.
@@ -25,6 +31,8 @@ Edit `project.yml` (not the xcodeproj) and re-run `xcodegen generate` when the p
 Create an API client under **Settings → System → API Roles and Clients** with read (and, to enable saving, update) privileges on Mobile Device Apps and Mac Apps, plus App Installers for the Jamf App Catalog. Start read-only if you want to evaluate safely — the app works fully as a browser, and every write is gated behind a diff preview and explicit confirmation regardless.
 
 API notes: full app records (scope, VPP, self service, app configuration) come from the Classic API (`/JSSResource/mobiledeviceapplications`, `/JSSResource/macapplications`) — JSON for reads, field-masked XML for writes. Jamf App Catalog deployments use the Pro API (`/api/v1/app-installers`). OAuth tokens come from `/api/oauth/token`.
+
+![Connect screen](docs/screenshot-connect.png)
 
 ## Status
 
