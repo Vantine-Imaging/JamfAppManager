@@ -4,7 +4,7 @@ A macOS 26 (SwiftUI, Liquid Glass) app for viewing and mass-modifying app settin
 
 ![Jamf App Manager](docs/screenshot-main.png)
 
-Every write — a single field, a template applied to fifty apps, or a CSV import — is staged as an old → new diff and sent only after explicit confirmation. Only changed fields are transmitted, so untouched settings can never be clobbered:
+Every write — a single field, a template applied to fifty apps, or a CSV import — is staged as an old → new diff and sent only after explicit confirmation. Edits pile up across apps as you work; Review Changes gathers everything pending in the catalog into one push, with a checkbox per app so you can hold some back for later. Only changed fields are transmitted, so untouched settings can never be clobbered:
 
 ![Review Changes](docs/screenshot-review.png)
 
