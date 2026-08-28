@@ -41,6 +41,7 @@ struct AppListView: View {
 
     @State private var showingImporter = false
     @State private var showingExporter = false
+    @State private var showingReview = false
     @State private var exportDocument: CSVDocument?
     @State private var isBuildingExport = false
     @State private var csvAlertMessage: String?
@@ -59,6 +60,10 @@ struct AppListView: View {
 
     private var catalogTemplates: [SettingsTemplate] {
         templateStore.templates(for: catalog)
+    }
+
+    private var editedApps: [RecordStore.EditedApp] {
+        recordStore.editedApps(catalog: catalog)
     }
 
     private var sortedSelection: [AppSummary] {
@@ -140,6 +145,15 @@ struct AppListView: View {
         .navigationSubtitle(subtitle)
         .searchable(text: $searchText, prompt: "Name or bundle ID")
         .toolbar {
+            if !editedApps.isEmpty {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Review Changes (\(editedApps.count) app\(editedApps.count == 1 ? "" : "s"))") {
+                        showingReview = true
+                    }
+                    .buttonStyle(.glassProminent)
+                    .help("Review and push the unsaved edits across this catalog")
+                }
+            }
             if !selection.isEmpty, !catalogTemplates.isEmpty {
                 ToolbarItem {
                     Menu {
@@ -181,6 +195,9 @@ struct AppListView: View {
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(isLoading)
             }
+        }
+        .sheet(isPresented: $showingReview) {
+            MultiReviewSheet(client: client, catalog: catalog)
         }
         .fileImporter(
             isPresented: $showingImporter,

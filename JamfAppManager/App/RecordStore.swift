@@ -87,6 +87,26 @@ final class RecordStore {
         }
     }
 
+    struct EditedApp: Identifiable {
+        let id: Int
+        let title: String
+        let editor: AppEditor
+    }
+
+    /// Every app in the catalog whose cached editor has unsaved changes —
+    /// the working set for the catalog-wide review sheet.
+    func editedApps(catalog: AppCatalog) -> [EditedApp] {
+        let prefix = "\(catalog.rawValue)-"
+        return entries.compactMap { key, entry -> EditedApp? in
+            guard key.hasPrefix(prefix), entry.editor.hasChanges else { return nil }
+            let id = entry.editor.appID
+            let title = lists[catalog]?.first { $0.id == id }?.listTitle
+                ?? (entry.editor.displayName.isEmpty ? "ID \(id)" : entry.editor.displayName)
+            return EditedApp(id: id, title: title, editor: entry.editor)
+        }
+        .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
     /// Called on disconnect/server switch so nothing bleeds between instances.
     func reset() {
         lists = [:]

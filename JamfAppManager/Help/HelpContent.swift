@@ -93,17 +93,19 @@ enum HelpBook {
         symbol: "pencil.line",
         summary: "Every write is a reviewed diff of exactly what changes.",
         blocks: [
-            .paragraph("Edit fields directly in the detail tabs — General, Scope, Self Service, Managed Distribution, and (for mobile device apps) App Configuration. Changes are tracked against the server's values: a Review Changes button appears the moment anything differs, and an orange pencil badge marks the app in the list."),
+            .paragraph("Edit fields directly in the detail tabs — General, Scope, Self Service, Managed Distribution, and (for mobile device apps) App Configuration. Changes are tracked against the server's values: an orange pencil badge marks each edited app in the list, and a Review Changes button appears above the list the moment anything in the catalog differs."),
             .heading("The review gate"),
             .bullets([
-                "Review Changes shows each field as old → new, plus the raw XML that will be sent.",
+                "Review Changes gathers every app with unsaved edits in the current catalog into one sheet.",
+                "Each app has a checkbox — uncheck any you want to hold back; they keep their edits for a later push.",
+                "Expand an app to see each field as old → new, plus the raw XML that will be sent.",
                 "Only changed fields are transmitted (a field-masked partial update), so settings you never touched cannot be clobbered.",
-                "Nothing reaches the server until you press Apply to Server.",
+                "Nothing reaches the server until you press Apply, and apps are written one at a time with live per-app results.",
             ]),
             .heading("Unsaved edits"),
             .bullets([
-                "Edits survive switching between apps — come back any time and the Review button is still there.",
-                "Discard reloads the record from the server and throws your edits away.",
+                "Edits survive switching between apps — pile up changes across the catalog, then push once.",
+                "Discard (in an app's detail view) reloads that record from the server and throws its edits away.",
                 "Scope lists are replacements: applying a new group list sets it exactly, it does not merge.",
             ]),
         ]

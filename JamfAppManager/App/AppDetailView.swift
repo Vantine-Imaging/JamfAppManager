@@ -33,12 +33,16 @@ struct AppDetailView: View {
 
     @Environment(TemplateStore.self) private var templateStore
     @Environment(RecordStore.self) private var recordStore
-    @State private var entry: RecordStore.Entry?
     @State private var errorMessage: String?
     @State private var selectedTab: Tab = .general
-    @State private var showingReview = false
     @State private var showingSaveTemplate = false
     @State private var templateName = ""
+
+    /// Read straight from the store so post-apply re-fetches (from the
+    /// catalog-wide review sheet) propagate here automatically.
+    private var entry: RecordStore.Entry? {
+        recordStore.entry(catalog: catalog, id: summary.id)
+    }
 
     var body: some View {
         Group {
@@ -67,12 +71,6 @@ struct AppDetailView: View {
                 }
                 .toolbar {
                     if editor.hasChanges {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Review Changes (\(editor.changes.count))") {
-                                showingReview = true
-                            }
-                            .buttonStyle(.glassProminent)
-                        }
                         ToolbarItem {
                             Button {
                                 Task { await load(force: true) }
@@ -106,14 +104,6 @@ struct AppDetailView: View {
                         } label: {
                             Label("More", systemImage: "ellipsis.circle")
                                 .labelStyle(.titleAndIcon)
-                        }
-                    }
-                }
-                .sheet(isPresented: $showingReview) {
-                    ReviewChangesSheet(client: client, editor: editor) {
-                        Task {
-                            await load(force: true)
-                            _ = try? await recordStore.loadList(catalog: catalog, client: client, force: true)
                         }
                     }
                 }
@@ -435,7 +425,7 @@ struct AppDetailView: View {
     private func load(force: Bool) async {
         errorMessage = nil
         do {
-            entry = try await recordStore.loadEntry(
+            _ = try await recordStore.loadEntry(
                 catalog: catalog, id: summary.id, client: client, force: force
             )
         } catch {
