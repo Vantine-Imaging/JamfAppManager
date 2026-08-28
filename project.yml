@@ -21,10 +21,28 @@ targets:
         # Read the enrolled Jamf Pro URL to prefill the connect screen.
         com.apple.security.temporary-exception.files.absolute-path.read-only:
           - /Library/Preferences/com.jamfsoftware.jamf.plist
+    postBuildScripts:
+      # Build number = git commit count, so every commit bumps it and any
+      # build traces back to its commit. Runs before code signing, so the
+      # signature covers the updated Info.plist.
+      - name: Set build number from git
+        script: |
+          BUILD=$(git -C "$SRCROOT" rev-list --count HEAD 2>/dev/null || echo "$CURRENT_PROJECT_VERSION")
+          PLIST="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          echo "note: setting CFBundleVersion=$BUILD in $PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$PLIST" || echo "warning: PlistBuddy failed on $PLIST"
+        # Input declaration orders this after Info.plist generation;
+        # otherwise the generated plist overwrites the build number.
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        basedOnDependencyAnalysis: false
     settings:
       base:
-        MARKETING_VERSION: 0.1.0
+        MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: 1
+        # The build-number script reads .git and edits the built Info.plist,
+        # which Xcode's script sandbox forbids.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: com.vantine.JamfAppManager
