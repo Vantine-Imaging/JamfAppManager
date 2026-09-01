@@ -189,17 +189,18 @@ struct ContentView: View {
 
     @ViewBuilder
     private func detailPane(client: JamfClient, catalog: AppCatalog, showingInstallers: Bool) -> some View {
+        // No .id(...) on these panes: identity churn makes the split view
+        // store divider position per app instead of once. The detail views
+        // reload themselves via .task(id:) when the selection changes.
         if showingInstallers {
             if let selectedDeployment {
                 AppInstallerDetailView(client: client, deployment: selectedDeployment)
-                    .id(selectedDeployment.id)
             } else {
                 noSelectionPlaceholder
             }
         } else if selectedApps.count == 1, let appID = selectedApps.first,
                   let app = recordStore.list(for: catalog)?.first(where: { $0.id == appID }) {
             AppDetailView(client: client, catalog: catalog, summary: app)
-                .id(app.id)
         } else if selectedApps.count > 1 {
             ContentUnavailableView {
                 Label("\(selectedApps.count) Apps Selected", systemImage: "square.on.square")

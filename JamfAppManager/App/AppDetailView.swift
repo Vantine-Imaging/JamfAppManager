@@ -123,7 +123,16 @@ struct AppDetailView: View {
         }
         .navigationTitle(summary.listTitle)
         .navigationSubtitle("ID \(summary.id)")
-        .task { await load(force: false) }
+        // Keyed by app id because this view keeps a stable identity across
+        // selection changes (so split-pane sizes stick).
+        .task(id: summary.id) { await load(force: false) }
+        .onChange(of: summary.id) {
+            // Keep the same tab when flipping through apps, unless the new
+            // app's catalog doesn't have it.
+            if !Tab.available(for: catalog).contains(selectedTab) {
+                selectedTab = .general
+            }
+        }
     }
 
     @ViewBuilder

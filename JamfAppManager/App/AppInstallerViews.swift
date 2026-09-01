@@ -166,7 +166,12 @@ struct AppInstallerDetailView: View {
         }
         .navigationTitle(deployment.name)
         .navigationSubtitle("Jamf App Catalog · ID \(deployment.id)")
-        .task { await load() }
+        // Keyed by deployment id: the view keeps a stable identity across
+        // selection changes so split-pane sizes stick.
+        .task(id: deployment.id) {
+            editor = nil
+            await load()
+        }
     }
 
     @ViewBuilder
