@@ -32,6 +32,7 @@ struct JamfAppManagerApp: App {
             HelpView()
                 .environment(help)
         }
-        .defaultSize(width: 900, height: 620)
+        .defaultSize(width: 700, height: 640)
+        .windowResizability(.contentSize)
     }
 }

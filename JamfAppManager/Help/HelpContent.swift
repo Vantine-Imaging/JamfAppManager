@@ -1,7 +1,7 @@
 // Copyright 2026 Vantine Imaging LLC
 // SPDX-License-Identifier: Apache-2.0
 
-import Foundation
+import SwiftUI
 
 /// One block of help prose. Kept as data rather than a web view so the text is
 /// selectable, searchable and themed like the rest of the app.
@@ -15,6 +15,7 @@ enum HelpBlock: Hashable {
 }
 
 struct HelpTopic: Identifiable, Hashable {
+    let accent: Color
     let id: String
     let title: String
     let symbol: String
@@ -35,6 +36,7 @@ enum HelpBook {
     // MARK: -
 
     static let gettingStarted = HelpTopic(
+        accent: .purple,
         id: "getting-started",
         title: "Getting Started",
         symbol: "sparkles",
@@ -43,7 +45,8 @@ enum HelpBook {
             .paragraph("Jamf App Manager talks to Jamf Pro through an API client — the same modern authentication Jamf recommends for every integration. Nothing is installed on your server and nothing runs in the background: the app reads records when you look at them and writes only when you confirm a change."),
             .heading("Connecting"),
             .bullets([
-                "In Jamf Pro, create an API role and client under Settings → System → API Roles and Clients (the exact privileges are listed in the API Permissions topic).",
+                "The fastest path: click Run Setup Wizard on the connect screen. Sign in once with a Jamf Pro admin account and the wizard creates the API role and client for you, then connects — the admin credentials are never stored.",
+                "Prefer to do it by hand? Create an API role and client under Settings → System → API Roles and Clients (the exact privileges are listed in the API Permissions topic).",
                 "Enter your server URL, client ID and client secret on the connect screen. The secret is stored in your login Keychain, never on disk.",
                 "On an enrolled Mac the server URL is prefilled from the machine's own MDM enrollment.",
                 "You can save several servers and switch between them from the toolbar's server menu.",
@@ -59,11 +62,13 @@ enum HelpBook {
     )
 
     static let apiPermissions = HelpTopic(
+        accent: .orange,
         id: "api-permissions",
         title: "API Permissions",
         symbol: "key",
         summary: "The exact privileges the API role needs — nothing more.",
         blocks: [
+            .note("The Setup Wizard on the connect screen creates this role and its client for you — the list below is for anyone building it by hand, and for auditors of what the wizard does."),
             .paragraph("Create an API role with these privileges (Settings → System → API Roles and Clients → API Roles). The names below are exactly as they appear in Jamf Pro's privilege picker."),
             .heading("To browse (read-only)"),
             .bullets([
@@ -88,6 +93,7 @@ enum HelpBook {
     )
 
     static let editing = HelpTopic(
+        accent: .blue,
         id: "editing",
         title: "Editing & Review",
         symbol: "pencil.line",
@@ -112,6 +118,7 @@ enum HelpBook {
     )
 
     static let templates = HelpTopic(
+        accent: .teal,
         id: "templates",
         title: "Templates",
         symbol: "square.on.square.dashed",
@@ -130,6 +137,7 @@ enum HelpBook {
     )
 
     static let csv = HelpTopic(
+        accent: .green,
         id: "csv",
         title: "CSV Import & Export",
         symbol: "tablecells",
@@ -150,6 +158,7 @@ enum HelpBook {
     )
 
     static let appCatalog = HelpTopic(
+        accent: .indigo,
         id: "app-catalog",
         title: "Jamf App Catalog",
         symbol: "shippingbox",
@@ -166,6 +175,7 @@ enum HelpBook {
     )
 
     static let limitations = HelpTopic(
+        accent: .red,
         id: "limitations",
         title: "What Can't Be Edited",
         symbol: "lock",
@@ -183,6 +193,7 @@ enum HelpBook {
     )
 
     static let license = HelpTopic(
+        accent: .gray,
         id: "license",
         title: "License",
         symbol: "doc.text",

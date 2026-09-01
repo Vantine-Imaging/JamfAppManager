@@ -14,6 +14,7 @@ struct ConnectView: View {
     @State private var clientID = ""
     @State private var secret = ""
     @State private var selectedServerID: UUID?
+    @State private var showingWizard = false
 
     private var isConnecting: Bool { session.phase == .connecting }
 
@@ -103,27 +104,43 @@ struct ConnectView: View {
                     .frame(maxWidth: 460)
             }
 
-            Button {
-                Task { await connect() }
-            } label: {
-                if isConnecting {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(minWidth: 120)
-                } else {
-                    Text("Connect")
-                        .frame(minWidth: 120)
+            HStack(spacing: 12) {
+                Button {
+                    showingWizard = true
+                } label: {
+                    Label("Run Setup Wizard", systemImage: "wand.and.stars")
+                        .labelStyle(.titleAndIcon)
+                        .frame(minWidth: 150)
                 }
+                .controlSize(.large)
+                .disabled(isConnecting)
+                .help("No API client yet? Sign in once as an admin and the wizard creates the role and client for you.")
+
+                Button {
+                    Task { await connect() }
+                } label: {
+                    if isConnecting {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(minWidth: 120)
+                    } else {
+                        Text("Connect")
+                            .frame(minWidth: 120)
+                    }
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                .disabled(isConnecting || normalizedURL.isEmpty || clientID.isEmpty)
             }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
-            .disabled(isConnecting || normalizedURL.isEmpty || clientID.isEmpty)
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.background)
         .onAppear { prefill() }
+        .sheet(isPresented: $showingWizard) {
+            SetupWizardView(prefillURL: normalizedURL)
+        }
     }
 
     private func prefill() {
