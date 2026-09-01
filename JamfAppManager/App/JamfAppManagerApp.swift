@@ -7,7 +7,7 @@ import SwiftUI
 struct JamfAppManagerApp: App {
     @State private var session = SessionStore()
     @State private var templateStore = TemplateStore()
-    @State private var iconStore = IconStore()
+    @State private var rowInfoStore = RowInfoStore()
     @State private var recordStore = RecordStore()
     @State private var help = HelpNavigator()
 
@@ -16,7 +16,7 @@ struct JamfAppManagerApp: App {
             ContentView()
                 .environment(session)
                 .environment(templateStore)
-                .environment(iconStore)
+                .environment(rowInfoStore)
                 .environment(recordStore)
                 .frame(minWidth: 900, minHeight: 560)
         }
@@ -27,6 +27,20 @@ struct JamfAppManagerApp: App {
                     .environment(help)
             }
         }
+
+        // Popped-out app detail windows (double-click a row, or the
+        // "Detail in New Window" layout). One window per app; reopening the
+        // same app fronts its existing window.
+        WindowGroup("App Detail", for: AppDetailTarget.self) { $target in
+            if let target {
+                PopoutDetailView(target: target)
+                    .environment(session)
+                    .environment(templateStore)
+                    .environment(rowInfoStore)
+                    .environment(recordStore)
+            }
+        }
+        .defaultSize(width: 640, height: 620)
 
         Window("Jamf App Manager Help", id: "help") {
             HelpView()

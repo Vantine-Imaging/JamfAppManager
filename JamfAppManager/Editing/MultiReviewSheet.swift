@@ -12,6 +12,7 @@ struct MultiReviewSheet: View {
     let catalog: AppCatalog
 
     @Environment(RecordStore.self) private var recordStore
+    @Environment(RowInfoStore.self) private var rowInfoStore
     @Environment(\.dismiss) private var dismiss
 
     private enum Status: Equatable {
@@ -225,6 +226,7 @@ struct MultiReviewSheet: View {
         for app in apps {
             if case .success = statuses[app.id] ?? .pending {
                 _ = try? await recordStore.loadEntry(catalog: catalog, id: app.id, client: client, force: true)
+                rowInfoStore.invalidate(catalog: catalog, id: app.id)
             }
         }
         _ = try? await recordStore.loadList(catalog: catalog, client: client, force: true)

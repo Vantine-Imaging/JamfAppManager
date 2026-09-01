@@ -19,14 +19,19 @@ enum MacSource: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(SessionStore.self) private var session
-    @Environment(IconStore.self) private var iconStore
+    @Environment(RowInfoStore.self) private var rowInfoStore
     @Environment(RecordStore.self) private var recordStore
     @State private var sidebarSelection: SidebarItem? = .catalog(.mac)
-    @State private var selectedApps: Set<AppSummary> = []
+    @State private var selectedApps: Set<Int> = []
     @State private var macSource: MacSource = .appStore
     @State private var selectedDeployment: AppInstallerDeployment?
     @State private var selectedTemplateID: UUID?
     @State private var batchRequest: BatchRequest?
+    @AppStorage(PaneLayout.storageKey) private var paneLayoutRaw = PaneLayout.right.rawValue
+
+    private var paneLayout: PaneLayout {
+        PaneLayout(rawValue: paneLayoutRaw) ?? .right
+    }
 
     var body: some View {
         Group {
@@ -41,12 +46,8 @@ struct ContentView: View {
         // moment the server changes, so a reset attached there never fires.
         .onChange(of: session.activeServerID) {
             recordStore.reset()
-            iconStore.reset()
+            rowInfoStore.reset()
         }
-    }
-
-    private var showingJamfAppCatalog: Bool {
-        sidebarSelection == .catalog(.mac) && macSource == .jamfAppCatalog
     }
 
     private var mainInterface: some View {
@@ -64,21 +65,12 @@ struct ContentView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 220)
-        } content: {
-            switch sidebarSelection {
-            case .catalog(let catalog):
-                if let client = session.client {
-                    catalogList(client: client, catalog: catalog)
-                }
-            case .templates:
-                TemplatesListView(selectedTemplateID: $selectedTemplateID)
-            case nil:
-                Text("Select a catalog")
-                    .foregroundStyle(.secondary)
-            }
         } detail: {
-            detailColumn
+            workspace
         }
+        // Keep the sidebar a discrete pane — the floating style lets wide
+        // tables scroll underneath it.
+        .navigationSplitViewStyle(.balanced)
         .onChange(of: sidebarSelection) {
             selectedApps = []
             selectedDeployment = nil
@@ -114,10 +106,44 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Workspace
+
     @ViewBuilder
-    private func catalogList(client: JamfClient, catalog: AppCatalog) -> some View {
-        if catalog == .mac {
-            VStack(spacing: 0) {
+    private var workspace: some View {
+        switch sidebarSelection {
+        case .catalog(let catalog):
+            if let client = session.client {
+                catalogWorkspace(client: client, catalog: catalog)
+            }
+        case .templates:
+            HSplitView {
+                TemplatesListView(selectedTemplateID: $selectedTemplateID)
+                    .frame(minWidth: 240, idealWidth: 300, maxWidth: 420)
+                Group {
+                    if let selectedTemplateID {
+                        TemplateEditorView(templateID: selectedTemplateID)
+                            .id(selectedTemplateID)
+                    } else {
+                        ContentUnavailableView(
+                            "No Template Selected",
+                            systemImage: "square.on.square.dashed",
+                            description: Text("Choose a template from the list, or create one with the + button.")
+                        )
+                    }
+                }
+                .frame(minWidth: 380, maxWidth: .infinity)
+            }
+        case nil:
+            Text("Select a catalog")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func catalogWorkspace(client: JamfClient, catalog: AppCatalog) -> some View {
+        let showingInstallers = catalog == .mac && macSource == .jamfAppCatalog
+        let listPane = VStack(spacing: 0) {
+            if catalog == .mac {
                 Picker("Source", selection: $macSource) {
                     ForEach(MacSource.allCases) { source in
                         Text(source.rawValue).tag(source)
@@ -127,57 +153,58 @@ struct ContentView: View {
                 .labelsHidden()
                 .padding([.horizontal, .top], 12)
                 .padding(.bottom, 4)
-
-                switch macSource {
-                case .appStore:
-                    AppListView(client: client, catalog: .mac, selection: $selectedApps) { request in
-                        batchRequest = request
-                    }
-                case .jamfAppCatalog:
-                    AppInstallerListView(client: client, selection: $selectedDeployment)
-                        .navigationTitle(catalog.title)
+            }
+            if showingInstallers {
+                AppInstallerListView(client: client, selection: $selectedDeployment)
+                    .navigationTitle(catalog.title)
+            } else {
+                AppListView(client: client, catalog: catalog, selection: $selectedApps) { request in
+                    batchRequest = request
                 }
+                .id(catalog)
             }
-        } else {
-            AppListView(client: client, catalog: catalog, selection: $selectedApps) { request in
-                batchRequest = request
+        }
+
+        switch paneLayout {
+        case .right:
+            HSplitView {
+                listPane
+                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
+                    .layoutPriority(1)
+                detailPane(client: client, catalog: catalog, showingInstallers: showingInstallers)
+                    .frame(minWidth: 400, idealWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
             }
-            .id(catalog)
+        case .bottom:
+            VSplitView {
+                listPane
+                    .frame(maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
+                    .layoutPriority(1)
+                detailPane(client: client, catalog: catalog, showingInstallers: showingInstallers)
+                    .frame(maxWidth: .infinity, minHeight: 240, maxHeight: .infinity)
+            }
+        case .window:
+            listPane
         }
     }
 
     @ViewBuilder
-    private var detailColumn: some View {
-        if sidebarSelection == .templates {
-            if let selectedTemplateID {
-                TemplateEditorView(templateID: selectedTemplateID)
-                    .id(selectedTemplateID)
-            } else {
-                ContentUnavailableView(
-                    "No Template Selected",
-                    systemImage: "square.on.square.dashed",
-                    description: Text("Choose a template from the list, or create one with the + button.")
-                )
-            }
-        } else if case .catalog(let catalog) = sidebarSelection, let client = session.client {
-            if showingJamfAppCatalog {
-                if let selectedDeployment {
-                    AppInstallerDetailView(client: client, deployment: selectedDeployment)
-                        .id(selectedDeployment.id)
-                } else {
-                    noSelectionPlaceholder
-                }
-            } else if selectedApps.count == 1, let app = selectedApps.first {
-                AppDetailView(client: client, catalog: catalog, summary: app)
-                    .id(app.id)
-            } else if selectedApps.count > 1 {
-                ContentUnavailableView {
-                    Label("\(selectedApps.count) Apps Selected", systemImage: "square.on.square")
-                } description: {
-                    Text("Use the Apply Template button above the list to change settings on all selected apps at once.")
-                }
+    private func detailPane(client: JamfClient, catalog: AppCatalog, showingInstallers: Bool) -> some View {
+        if showingInstallers {
+            if let selectedDeployment {
+                AppInstallerDetailView(client: client, deployment: selectedDeployment)
+                    .id(selectedDeployment.id)
             } else {
                 noSelectionPlaceholder
+            }
+        } else if selectedApps.count == 1, let appID = selectedApps.first,
+                  let app = recordStore.list(for: catalog)?.first(where: { $0.id == appID }) {
+            AppDetailView(client: client, catalog: catalog, summary: app)
+                .id(app.id)
+        } else if selectedApps.count > 1 {
+            ContentUnavailableView {
+                Label("\(selectedApps.count) Apps Selected", systemImage: "square.on.square")
+            } description: {
+                Text("Use the Apply Template button above the list to change settings on all selected apps at once.")
             }
         } else {
             noSelectionPlaceholder
@@ -190,5 +217,31 @@ struct ContentView: View {
             systemImage: "app.dashed",
             description: Text("Choose an app from the list to view its settings.")
         )
+    }
+}
+
+/// Content of a popped-out detail window (double-click a row, or the
+/// "Detail in New Window" layout).
+struct PopoutDetailView: View {
+    let target: AppDetailTarget
+
+    @Environment(SessionStore.self) private var session
+    @Environment(RecordStore.self) private var recordStore
+
+    var body: some View {
+        if let client = session.client {
+            let summary = recordStore.list(for: target.catalog)?
+                .first { $0.id == target.appID }
+                ?? AppSummary(id: target.appID, name: target.title, displayName: nil, bundleID: nil, version: nil)
+            AppDetailView(client: client, catalog: target.catalog, summary: summary)
+                .frame(minWidth: 560, minHeight: 480)
+        } else {
+            ContentUnavailableView(
+                "Not Connected",
+                systemImage: "bolt.horizontal.circle",
+                description: Text("Connect to the server in the main window first.")
+            )
+            .frame(minWidth: 420, minHeight: 300)
+        }
     }
 }

@@ -154,6 +154,7 @@ struct BatchApplySheet: View {
     @State private var model: BatchApplyModel
     @Environment(\.dismiss) private var dismiss
     @Environment(RecordStore.self) private var recordStore
+    @Environment(RowInfoStore.self) private var rowInfoStore
 
     init(client: JamfClient, request: BatchRequest) {
         _model = State(initialValue: BatchApplyModel(client: client, request: request))
@@ -214,6 +215,7 @@ struct BatchApplySheet: View {
         for target in model.targets {
             if case .success = target.state {
                 recordStore.invalidate(catalog: model.catalog, id: target.summary.id)
+                rowInfoStore.invalidate(catalog: model.catalog, id: target.summary.id)
                 wroteAny = true
             }
         }
